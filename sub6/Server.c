@@ -8,15 +8,19 @@
 #include <wait.h>
 #include <time.h>
 
-#define FIFO_FILE "./fifo1_temp_"
-#define FIFO_FILE "./fifo2_temp_"
+#define FIFO_FILE1 "./fifo1_temp"
+#define FIFO_FILE2 "./fifo2_temp"
 #define BUFF_SIZE 100
 
 int main(void) {
+	int counter = 0;
 	int status;
 	int pipe_child[2];
 	int randomNumber;
+	int fd;
+	int fd2;
 	char buff[BUFF_SIZE];
+	int answer;
 	pid_t pid;
 	pid_t pid_child;
 
@@ -42,7 +46,58 @@ int main(void) {
 		}else {
 			memset ( buff, 0x00, BUFF_SIZE);
 			read( pipe_child[0], buff, BUFF_SIZE);
-			printf("랜덤숫자 출력 : %s\n", buff);
+			answer = atoi(buff);
+//			printf("랜덤숫자 출력 : %d\n", atoi(buff));
+		} 	// git commit 1
+
+		if ( mkfifo (FIFO_FILE1, 0666) == -1 ) {
+			perror( "mkfifo() 실행에러 FIFO_FILE1");
+			exit(1);
 		}
+		if ( mkfifo (FIFO_FILE2, 0666) == -1 ) {
+			perror( "mkfifo() 실행에러 FIFO_FILE2");
+			exit(1);
+		}
+		
+		if ( -1 == ( fd = open(FIFO_FILE1, O_RDONLY) ) ) {
+
+			perror ( " open() 실행에러 FIFO_FILE1");
+			exit(1);
+		}
+		if ( -1 == ( fd2 = open(FIFO_FILE2, O_WRONLY) ) ) {
+
+			perror ( " open() 실행에러 FIFO_FILE2");
+			exit(1);
+		}
+		while (1) {
+			sleep(1);
+			memset(buff, 0x00, BUFF_SIZE);
+			read(fd, buff, BUFF_SIZE);
+			printf("answer : %s", buff);
+			if ( answer  > atoi(buff) ) {
+				sprintf(buff,"result : UP(%d/10)",++counter);
+				printf("%s\n",buff);
+				write(fd2, buff, strlen(buff));
+			}else if ( answer < atoi(buff) ) {
+				sprintf(buff,"result : DOWN(%d/10)",++counter);
+				printf("%s\n",buff);
+				write(fd2, buff, strlen(buff));
+			}else {
+				sprintf(buff,"result : Corect(%d/10)",++counter);
+				printf("%s\n",buff);
+				write(fd2, buff, strlen(buff));
+				exit(0);
+			}
+			if ( counter >= 10) {
+				printf ("Failure\n");
+				sprintf(buff,"Failure");
+				write(fd2, buff, strlen(buff));
+				exit(0);
+			}
+		}
+	close(fd);
+	close(fd2);
 	}
+
+	return 0;
 }
